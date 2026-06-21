@@ -59,7 +59,7 @@ your-save-folder/
 dust2.png 地图素材版权归 Valve Corporation 所有，仅用于个人学习与社区交流目的
 本项目不主张任何版权，亦不用于商业用途
 如您是版权方并希望移除相关素材，请联系作者，我们将立即处理
+含ai辅助生成内容
 
 ### 📄 License
 MIT License
-```
