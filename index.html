@@ -17,10 +17,12 @@
             --safe-bottom: env(safe-area-inset-bottom);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg-color); color: var(--text-color); overflow: hidden; height: 100vh; display: flex; touch-action: none; }
+        
+        /* ✅ 修复：使用 dvh 防止 Safari 地址栏遮挡 */
+        body { background: var(--bg-color); color: var(--text-color); overflow: hidden; height: 100dvh; display: flex; touch-action: none; }
 
         /* --- 侧边栏 --- */
-        #sidebar { width: 300px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 100; }
+        #sidebar { width: 300px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 100; transition: transform 0.3s ease; }
         .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
         .sidebar-header h2 { font-size: 18px; color: var(--accent-color); }
         #btn-mode { padding: 6px 12px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; cursor: pointer; font-size: 12px; }
@@ -66,35 +68,77 @@
         .map-point:hover { transform: translate(-50%, -50%) scale(1.4); z-index: 20; }
         .map-point.favorite::after { content: '⭐'; position: absolute; top: -10px; right: -10px; font-size: 12px; filter: drop-shadow(0 0 2px black); }
 
-        /* --- 瞄准模式 --- */
-        #aim-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 50; touch-action: none; background: rgba(0,0,0,0.1); pointer-events: auto; }
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); pointer-events: none !important; z-index: 52; }
+        /* --- 瞄准模式 (✅ 修复3：Flex 布局防沉底) --- */
+        #aim-overlay { 
+            display: none; 
+            position: absolute; 
+            top: 0; left: 0; right: 0; bottom: 0; 
+            z-index: 50; 
+            touch-action: none; 
+            background: rgba(0,0,0,0.1); 
+            pointer-events: auto;
+            /* 关键：改为 Flex 纵向布局 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: max(16px, var(--safe-top));
+            padding-bottom: max(20px, var(--safe-bottom)); 
+        }
+        
+        #crosshair { 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            width: 40px; height: 40px; 
+            transform: translate(-50%, -50%); 
+            pointer-events: none !important; 
+            z-index: 52; 
+        }
         #crosshair div:nth-child(1) { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: var(--accent-color); transform: translateY(-50%); }
         #crosshair div:nth-child(2) { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--accent-color); transform: translateX(-50%); }
         #crosshair div:nth-child(3) { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-color); transform: translate(-50%, -50%); box-shadow: 0 0 6px rgba(255,152,0,0.8); }
-        .aim-hint { position: absolute; top: max(16px, var(--safe-top)); left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; pointer-events: none !important; white-space: nowrap; backdrop-filter: blur(4px); z-index: 52; }
         
-        /* ✅ 修复3：底部按钮防遮挡，增加安全区偏移 */
+        .aim-hint { 
+            background: rgba(0,0,0,0.8); 
+            color: #fff; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            font-size: 13px; 
+            pointer-events: none !important; 
+            white-space: nowrap; 
+            backdrop-filter: blur(4px); 
+            z-index: 52; 
+            margin-top: 10px;
+        }
+        
+        /* 按钮组作为 Flex 子项自然沉底，不再使用 absolute bottom */
         .aim-controls { 
-            position: absolute; 
-            bottom: max(20px, calc(var(--safe-bottom) + 10px)); 
-            left: 50%; 
-            transform: translateX(-50%);
             display: flex; 
             gap: 12px; 
             z-index: 60 !important; 
             width: 90%; 
             max-width: 400px;
             pointer-events: auto !important;
-            padding-bottom: 5px;
+            /* 额外物理安全垫，防止环境变量失效 */
+            padding-bottom: 10px; 
         }
-        .aim-btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; min-height: 48px; pointer-events: auto !important; -webkit-tap-highlight-color: rgba(255,152,0,0.3); }
+        .aim-btn { 
+            flex: 1; 
+            padding: 14px; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            min-height: 48px; 
+            pointer-events: auto !important; 
+            -webkit-tap-highlight-color: rgba(255,152,0,0.3);
+        }
         #aim-confirm { background: var(--accent-color); color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         #aim-cancel { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(4px); }
 
         /* --- 弹窗通用 --- */
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .modal-content { background: var(--sidebar-bg); padding: 30px; border-radius: 16px; width: 600px; max-width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-content { background: var(--sidebar-bg); padding: 30px; border-radius: 16px; width: 600px; max-width: 95%; max-height: 90dvh; overflow-y: auto; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .modal-content h3 { margin-bottom: 20px; color: var(--accent-color); font-size: 20px; }
         .form-group { margin-bottom: 18px; }
         .form-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #aaa; }
@@ -127,7 +171,7 @@
         .btn-submit { background: var(--accent-color); color: black; }
 
         /* --- 详情弹窗 (主图顶宽+左右切换+缩略图) --- */
-        .detail-modal .modal-content { width: 85vw; max-width: 1000px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 95vh; border-radius: 16px; }
+        .detail-modal .modal-content { width: 85vw; max-width: 1000px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 95dvh; border-radius: 16px; }
         .detail-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .detail-body { padding: 24px; overflow-y: auto; flex: 1; }
         .detail-desc { color: #ccc; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; user-select: text; font-size: 15px; }
@@ -167,40 +211,36 @@
         #fs-close { position: absolute; top: max(20px, var(--safe-top)); right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 24px; cursor: pointer; z-index: 2001; display: flex; align-items: center; justify-content: center; }
         #fs-close:hover { background: rgba(255,255,255,0.4); }
 
-        /* ✅ 修复1：iPad 触控设备强制移动端布局 */
-        @media (hover: none) and (max-width: 1024px) {
+        /* ✅ 修复1：iPad 触控设备强制移动端布局 (优先级高于宽度断点) */
+        @media (hover: none) and (pointer: coarse) {
             body { flex-direction: column; }
-            #sidebar { width: 100%; max-height: 40vh; order: 2; }
+            #sidebar { width: 100%; max-height: 40dvh; order: 2; border-right: none; border-bottom: 1px solid var(--border-color); }
             #map-container { order: 1; flex: 1; }
             .sidebar-header { padding: 12px 16px; }
             .sidebar-controls { padding: 12px 16px; }
             .sidebar-list { padding: 8px 12px; max-height: 200px; }
-            .list-item { padding: 10px; min-height: 40px; }
+            .list-item { padding: 10px; min-height: 44px; }
             .modal-content { width: 100%; max-width: 100%; height: 100%; max-height: 100%; border-radius: 0; padding: 20px; }
             .detail-modal .modal-content { width: 100%; height: 100%; border-radius: 0; }
             .detail-body { padding: 16px; }
             .cat-img-box { width: 160px; }
-            .aim-controls { bottom: max(16px, calc(var(--safe-bottom) + 10px)); width: 95%; }
+            .aim-controls { width: 95%; padding-bottom: 20px; } /* 触控设备额外增加安全垫 */
             .aim-btn { padding: 12px; font-size: 15px; }
             .list-item, .img-slot, .aim-btn { min-height: 44px; }
+            
+            /* iPad 横屏增强版：无鼠标但大屏时，侧边栏在左但加大触控区 */
+            @media (min-width: 769px) {
+                body { flex-direction: row; }
+                #sidebar { width: 360px; max-height: 100dvh; order: unset; border-right: 1px solid var(--border-color); border-bottom: none; }
+                #map-container { order: unset; }
+                .list-item { min-height: 56px; padding: 14px; }
+                .sidebar-controls input, .sidebar-controls select, .io-buttons button { min-height: 48px; font-size: 15px; }
+            }
         }
 
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-            #sidebar { width: 100%; height: auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border-color); order: 2; }
-            #map-container { order: 1; flex: 1; }
-            .sidebar-header { padding: 12px 16px; }
-            .sidebar-controls { padding: 12px 16px; }
-            .sidebar-list { padding: 8px 12px; max-height: 200px; }
-            .list-item { padding: 10px; min-height: 40px; }
-            .modal-content { width: 100%; max-width: 100%; height: 100%; max-height: 100%; border-radius: 0; padding: 20px; }
-            .detail-modal .modal-content { width: 100%; height: 100%; border-radius: 0; }
-            .detail-body { padding: 16px; }
-            .cat-img-box { width: 160px; }
-            .thumb-item { width: 100px; }
-            .nav-btn { width: 36px; height: 36px; font-size: 16px; }
-            .aim-controls { bottom: max(16px, calc(var(--safe-bottom) + 10px)); width: 95%; }
-            .aim-btn { padding: 12px; font-size: 15px; }
+        /* 纯小屏手机兜底 */
+        @media (max-width: 768px) and (hover: hover) {
+             /* 极少数带鼠标的小屏设备保持原样，此处可留空或微调 */
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -227,9 +267,10 @@
     <main id="map-container">
         <div id="map-wrapper"><img id="dust2-map" src="dust2.png" alt="Dust2 Map"></div>
         <div id="points-layer"></div>
+        <!-- ✅ 修复3：瞄准模式改为 Flex 容器 -->
         <div id="aim-overlay">
-            <div id="crosshair"><div></div><div></div><div></div></div>
             <div class="aim-hint">🎯 拖动移动地图 · 双指缩放 · 将目标对准中心准星</div>
+            <div id="crosshair"><div></div><div></div><div></div></div>
             <div class="aim-controls">
                 <button id="aim-confirm" class="aim-btn">✓ 确认放置</button>
                 <button id="aim-cancel" class="aim-btn">✕ 取消</button>
@@ -274,7 +315,7 @@
     // ================= File System Access API =================
     let dirHandle = null, utilities = [], isDirty = false;
     const TYPE_COLORS = { smoke: '#4D90FE', flash: '#FCE883', he: '#E53935', molotov: '#FF9800' };
-    const TYPE_ICONS = { smoke: '🌫️', flash: '💥', he: '💣', molotov: '' };
+    const TYPE_ICONS = { smoke: '🌫️', flash: '💥', he: '', molotov: '🔥' };
     const supportsFS = ('showDirectoryPicker' in window);
 
     async function initFileSystem() {
@@ -283,7 +324,7 @@
     }
     async function loadDataFromFS() { try { const fh = await dirHandle.getFileHandle('data.json', { create: true }); const f = await fh.getFile(); utilities = f.size > 0 ? JSON.parse(await f.text()) : []; } catch (e) { utilities = []; } }
     async function saveToFS() { if (!dirHandle) { alert('请先初始化存储目录！'); return; } try { const fh = await dirHandle.getFileHandle('data.json', { create: true }); const w = await fh.createWritable(); await w.write(JSON.stringify(utilities, null, 2)); await w.close(); isDirty = false; updateFSButton(true); } catch (e) { alert('保存失败: ' + e.message); } }
-    function updateFSButton(c) { const b = document.getElementById('btn-init-fs'); b.textContent = c ? '✅ 已连接存储目录' : ' 初始化存储目录'; b.classList.toggle('connected', c); }
+    function updateFSButton(c) { const b = document.getElementById('btn-init-fs'); b.textContent = c ? '✅ 已连接存储目录' : '📁 初始化存储目录'; b.classList.toggle('connected', c); }
     window.addEventListener('beforeunload', (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } });
 
     // ================= 地图引擎 =================
@@ -309,7 +350,7 @@
     const aimOverlay = document.getElementById('aim-overlay');
     let isAiming = false, aimLastTouchDist = 0, aimTouchStartTarget = null;
 
-    function enterAimMode() { isAiming = true; aimOverlay.style.display = 'block'; mapContainer.classList.add('grabbing'); }
+    function enterAimMode() { isAiming = true; aimOverlay.style.display = 'flex'; /* ✅ 修复：改为 flex 显示 */ mapContainer.classList.add('grabbing'); }
     function exitAimModeAndBrowse() {
         isAiming = false; aimOverlay.style.display = 'none'; mapContainer.classList.remove('grabbing');
         isEditMode = false;
