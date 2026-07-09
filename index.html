@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS2 沙二道具教程 (FileSystem Pro)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CS2 沙二道具教程管理器</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -13,10 +13,11 @@
             --accent-color: #FF9800;
             --input-bg: #2A2A2A;
             --danger-color: #E53935;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
-        body { background: var(--bg-color); color: var(--text-color); overflow: hidden; height: 100vh; display: flex; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg-color); color: var(--text-color); overflow: hidden; height: 100vh; display: flex; touch-action: none; }
 
         /* --- 侧边栏 --- */
         #sidebar { width: 300px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 100; }
@@ -24,765 +25,494 @@
         .sidebar-header h2 { font-size: 18px; color: var(--accent-color); }
         #btn-mode { padding: 6px 12px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; cursor: pointer; font-size: 12px; }
         #btn-mode.active { background: var(--accent-color); color: #000; border-color: var(--accent-color); font-weight: bold; }
-        
         .sidebar-controls { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px; }
-        .sidebar-controls input, .sidebar-controls select { width: 100%; padding: 8px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; outline: none; }
+        .sidebar-controls input, .sidebar-controls select { width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px; outline: none; font-size: 14px; }
         .filters { display: flex; gap: 10px; }
         .filters select { flex: 1; }
-        .fav-filter { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; cursor: pointer; }
+        .fav-filter { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; cursor: pointer; padding: 5px 0; }
         .io-buttons { display: flex; gap: 10px; }
-        .io-buttons button { flex: 1; padding: 8px; background: #333; border: none; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .io-buttons button { flex: 1; padding: 10px; background: #333; border: none; color: #ccc; border-radius: 6px; cursor: pointer; font-size: 13px; }
         .io-buttons button:hover { background: #444; }
         #btn-init-fs { background: #2E7D32 !important; color: white !important; font-weight: bold; }
         #btn-init-fs.connected { background: #1B5E20 !important; opacity: 0.7; cursor: default; }
-
-        .sidebar-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .list-item { padding: 10px; background: var(--input-bg); border-radius: 6px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s; border: 1px solid transparent; }
+        .sidebar-list { flex: 1; overflow-y: auto; padding: 10px; padding-bottom: calc(10px + var(--safe-bottom)); }
+        .list-item { padding: 12px; background: var(--input-bg); border-radius: 8px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s; border: 1px solid transparent; min-height: 44px; }
         .list-item:hover { background: #333; border-color: var(--accent-color); }
         .list-item .icon { font-size: 18px; }
         .list-item .name { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .list-item .fav { color: gold; font-size: 14px; }
 
         /* --- 地图区域 --- */
-        #map-container { flex: 1; position: relative; overflow: hidden; background: #000; cursor: grab; }
+        #map-container { flex: 1; position: relative; overflow: hidden; background: #000; cursor: grab; touch-action: none; }
         #map-container.edit-mode { cursor: crosshair; }
         #map-container.grabbing { cursor: grabbing; }
-        #map-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
+        #map-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; will-change: transform; }
         #map-wrapper.smooth-pan { transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
-        #dust2-map { display: block; -webkit-user-drag: none; }
+        #dust2-map { display: block; -webkit-user-drag: none; pointer-events: none; }
         #points-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         #points-layer.smooth-pan .map-point { transition: left 0.5s cubic-bezier(0.25, 1, 0.5, 1), top 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
-
-        .map-point { position: absolute; width: 16px; height: 16px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid white; cursor: pointer; box-shadow: 0 0 8px rgba(0,0,0,0.8); transition: transform 0.1s; pointer-events: auto; z-index: 10; }
+        .map-point { position: absolute; width: 20px; height: 20px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid white; cursor: pointer; box-shadow: 0 0 8px rgba(0,0,0,0.8); transition: transform 0.1s; pointer-events: auto; z-index: 10; }
         .map-point:hover { transform: translate(-50%, -50%) scale(1.4); z-index: 20; }
-        .map-point.favorite::after { content: '⭐'; position: absolute; top: -12px; right: -12px; font-size: 14px; filter: drop-shadow(0 0 2px black); }
+        .map-point.favorite::after { content: '⭐'; position: absolute; top: -10px; right: -10px; font-size: 12px; filter: drop-shadow(0 0 2px black); }
+
+        /* --- 瞄准模式 --- */
+        #aim-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 50; touch-action: none; background: rgba(0,0,0,0.1); pointer-events: auto; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); pointer-events: none !important; z-index: 52; }
+        #crosshair div:nth-child(1) { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: var(--accent-color); transform: translateY(-50%); }
+        #crosshair div:nth-child(2) { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--accent-color); transform: translateX(-50%); }
+        #crosshair div:nth-child(3) { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-color); transform: translate(-50%, -50%); box-shadow: 0 0 6px rgba(255,152,0,0.8); }
+        .aim-hint { position: absolute; top: max(16px, var(--safe-top)); left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; pointer-events: none !important; white-space: nowrap; backdrop-filter: blur(4px); z-index: 52; }
+        .aim-controls { position: absolute; bottom: max(20px, var(--safe-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 60 !important; width: 90%; max-width: 400px; pointer-events: auto !important; }
+        .aim-btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; min-height: 48px; pointer-events: auto !important; -webkit-tap-highlight-color: rgba(255,152,0,0.3); }
+        #aim-confirm { background: var(--accent-color); color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        #aim-cancel { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(4px); }
 
         /* --- 弹窗通用 --- */
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .modal-content { background: var(--sidebar-bg); padding: 30px; border-radius: 12px; width: 600px; max-width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .modal-content h3 { margin-bottom: 20px; color: var(--accent-color); }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #aaa; }
-        .form-group input[type="text"], .form-group textarea, .form-group select { width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px; outline: none; font-size: 14px; }
-        .form-group textarea { resize: vertical; min-height: 60px; font-family: inherit; user-select: text; }
-        
-        .type-selector { display: flex; gap: 15px; background: var(--input-bg); padding: 10px; border-radius: 6px; }
-        .type-selector label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px; color: var(--text-color); margin: 0; }
-        
-        .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-        .tag-pill { background: #333; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; border: 1px solid #444; }
-        .remove-tag { cursor: pointer; color: #888; font-weight: bold; }
+        .modal-content { background: var(--sidebar-bg); padding: 30px; border-radius: 16px; width: 600px; max-width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-content h3 { margin-bottom: 20px; color: var(--accent-color); font-size: 20px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #aaa; }
+        .form-group input[type="text"], .form-group textarea, .form-group select { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px; outline: none; font-size: 15px; min-height: 44px; }
+        .form-group textarea { resize: vertical; min-height: 80px; font-family: inherit; user-select: text; }
+        .type-selector { display: flex; gap: 15px; background: var(--input-bg); padding: 12px; border-radius: 8px; flex-wrap: wrap; }
+        .type-selector label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 15px; color: var(--text-color); margin: 0; padding: 4px 8px; border-radius: 4px; }
+        .type-selector label:has(input:checked) { background: rgba(255,152,0,0.15); color: var(--accent-color); }
+        .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .tag-pill { background: #333; padding: 6px 12px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px; border: 1px solid #444; }
+        .remove-tag { cursor: pointer; color: #888; font-weight: bold; padding: 0 2px; }
         .remove-tag:hover { color: var(--danger-color); }
 
-        /* 三桶图片上传区 (支持拖拽排序) */
-        .bucket-section { margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; background: #252525; }
-        .bucket-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; color: var(--accent-color); display: flex; justify-content: space-between; align-items: center; }
+        /* 图片上传区 */
+        .bucket-section { margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; background: #252525; }
+        .bucket-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: var(--accent-color); display: flex; justify-content: space-between; align-items: center; }
         .bucket-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; min-height: 80px; }
-        .img-slot {
-            aspect-ratio: 16/9; border: 2px dashed #555; border-radius: 6px;
-            background: var(--input-bg); color: #888;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s;
-            background-size: cover; background-position: center;
-            font-size: 12px; text-align: center; position: relative;
-        }
+        .img-slot { aspect-ratio: 16/9; border: 2px dashed #555; border-radius: 8px; background: var(--input-bg); color: #888; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; background-size: cover; background-position: center; font-size: 12px; text-align: center; position: relative; }
         .img-slot.dragover { border-color: var(--accent-color); background: #333; }
-        /* 编辑模式下的主图高亮与拖拽样式 */
         .img-slot.is-main { border: 2px solid var(--accent-color); border-style: solid; }
-        .img-slot.is-main::before {
-            content: '主图'; position: absolute; top: 2px; left: 4px;
-            background: var(--accent-color); color: black; font-size: 10px; padding: 1px 4px; border-radius: 2px; font-weight: bold; z-index: 2;
-        }
+        .img-slot.is-main::before { content: '主图'; position: absolute; top: 4px; left: 4px; background: var(--accent-color); color: black; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; z-index: 2; }
         .img-slot[draggable="true"] { cursor: grab; border-style: solid; border-color: #444; }
         .img-slot[draggable="true"]:active { cursor: grabbing; opacity: 0.5; }
         .img-slot.drag-target { border-color: #fff; border-style: dashed; }
-        
-        .img-slot .del-img {
-            position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
-            background: var(--danger-color); color: white; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; font-size: 12px;
-            cursor: pointer; opacity: 0; transition: 0.2s; z-index: 3;
-        }
+        .img-slot .del-img { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; background: var(--danger-color); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; opacity: 0; transition: 0.2s; z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .img-slot:hover .del-img { opacity: 1; }
-
-        .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
-        .form-actions button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 25px; padding-bottom: var(--safe-bottom); }
+        .form-actions button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; min-height: 44px; }
         .btn-cancel { background: #444; color: white; }
         .btn-submit { background: var(--accent-color); color: black; }
 
-        /* --- 详情弹窗 (自适应大图 + 左右按钮) --- */
-        .detail-modal .modal-content { width: 80vw; max-width: 1200px; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-        .detail-header { padding: 20px 30px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .detail-body { padding: 30px; overflow-y: auto; flex: 1; }
-        .detail-desc { color: #ccc; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; user-select: text; }
-        
-        .main-viewer-wrapper { position: relative; width: 100%; margin-bottom: 15px; }
-        .main-viewer {
-            width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden;
-            position: relative; cursor: zoom-in; border: 1px solid #333;
-        }
+        /* --- 详情弹窗 (主图顶宽+左右切换+缩略图) --- */
+        .detail-modal .modal-content { width: 85vw; max-width: 1000px; padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 95vh; border-radius: 16px; }
+        .detail-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .detail-body { padding: 24px; overflow-y: auto; flex: 1; }
+        .detail-desc { color: #ccc; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; user-select: text; font-size: 15px; }
+
+        .image-category { margin-bottom: 28px; }
+        .category-title { font-size: 16px; font-weight: bold; color: var(--accent-color); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .category-title span { font-size: 12px; color: #888; font-weight: normal; }
+
+        /* 主图容器：顶宽、16:9、带左右按钮 */
+        .main-viewer-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
+        .main-viewer { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; position: relative; cursor: zoom-in; border: 1px solid #333; }
         .main-viewer img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-        .main-viewer span {
-            position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8);
-            padding: 4px 10px; border-radius: 4px; font-size: 13px; pointer-events: none;
-        }
-        
-        /* 左右切换按钮 */
-        .nav-btn {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            width: 40px; height: 40px; border-radius: 50%;
-            background: rgba(0,0,0,0.6); color: white; border: none;
-            font-size: 24px; cursor: pointer; z-index: 10;
-            display: flex; align-items: center; justify-content: center;
-            transition: 0.2s; opacity: 0.7;
-        }
+        .main-viewer-label { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 6px; font-size: 13px; pointer-events: none; }
+
+        .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.6); color: white; border: none; font-size: 20px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0.8; backdrop-filter: blur(4px); }
         .nav-btn:hover { opacity: 1; background: rgba(255,152,0,0.8); }
-        .nav-btn.prev { left: 10px; }
-        .nav-btn.next { right: 10px; }
+        .nav-btn.prev { left: 12px; }
+        .nav-btn.next { right: 12px; }
         .nav-btn:disabled { opacity: 0.2; cursor: not-allowed; background: rgba(0,0,0,0.6); }
 
-        .thumb-nav { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
-        .thumb-nav::-webkit-scrollbar { height: 6px; }
-        .thumb-nav::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
-        .thumb-item {
-            flex-shrink: 0; width: 120px; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden;
-            border: 2px solid transparent; cursor: pointer; opacity: 0.6; transition: 0.2s;
-            background: #000; position: relative;
-        }
+        /* 缩略图导航 */
+        .thumb-nav { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+        .thumb-nav::-webkit-scrollbar { height: 4px; }
+        .thumb-nav::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+        .thumb-item { flex-shrink: 0; width: 120px; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid transparent; cursor: pointer; opacity: 0.6; transition: 0.2s; background: #000; position: relative; scroll-snap-align: start; }
         .thumb-item.active { border-color: var(--accent-color); opacity: 1; }
-        /* 详情页缩略图的主图高亮 */
-        .thumb-item.is-main-thumb { border-color: var(--accent-color); }
-        .thumb-item.is-main-thumb::after {
-            content: '主'; position: absolute; top: 2px; right: 2px;
-            background: var(--accent-color); color: black; font-size: 10px; 
-            width: 16px; height: 16px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; font-weight: bold;
-        }
+        .thumb-item.is-main-thumb::after { content: '主'; position: absolute; top: 2px; right: 2px; background: var(--accent-color); color: black; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .thumb-item img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-        .thumb-label { font-size: 11px; color: #888; margin-top: 4px; text-align: center; }
 
-        .detail-actions button { padding: 6px 12px; background: #333; border: none; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; margin-left: 8px; }
+        .detail-actions button { padding: 8px 16px; background: #333; border: none; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; margin-left: 8px; min-height: 36px; }
         .detail-actions button:hover { background: #444; }
         .detail-actions #btn-delete:hover { background: var(--danger-color); }
-        .detail-actions #btn-close-detail { background: transparent; font-size: 24px; padding: 0 5px; margin: 0; }
+        .detail-actions #btn-close-detail { background: transparent; font-size: 28px; padding: 0 8px; margin: 0; min-height: auto; }
 
         /* 全屏图片查看器 */
-        #fullscreen-viewer { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 2000; cursor: grab; }
+        #fullscreen-viewer { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.98); z-index: 2000; cursor: grab; touch-action: none; }
         #fullscreen-viewer.grabbing { cursor: grabbing; }
-        #fs-img { position: absolute; transform-origin: 0 0; -webkit-user-drag: none; }
-        #fs-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; cursor: pointer; z-index: 2001; }
+        #fs-img { position: absolute; transform-origin: 0 0; -webkit-user-drag: none; touch-action: none; }
+        #fs-close { position: absolute; top: max(20px, var(--safe-top)); right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 24px; cursor: pointer; z-index: 2001; display: flex; align-items: center; justify-content: center; }
         #fs-close:hover { background: rgba(255,255,255,0.4); }
 
-        ::-webkit-scrollbar { width: 8px; }
+        /* --- 移动端适配 --- */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border-color); order: 2; }
+            #map-container { order: 1; flex: 1; }
+            .sidebar-header { padding: 12px 16px; }
+            .sidebar-controls { padding: 12px 16px; }
+            .sidebar-list { padding: 8px 12px; max-height: 200px; }
+            .list-item { padding: 10px; min-height: 40px; }
+            .modal-content { width: 100%; max-width: 100%; height: 100%; max-height: 100%; border-radius: 0; padding: 20px; }
+            .detail-modal .modal-content { width: 100%; height: 100%; border-radius: 0; }
+            .detail-body { padding: 16px; }
+            .thumb-item { width: 100px; }
+            .nav-btn { width: 36px; height: 36px; font-size: 16px; }
+            .aim-controls { bottom: max(16px, var(--safe-bottom)); width: 95%; }
+            .aim-btn { padding: 12px; font-size: 15px; }
+        }
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 </head>
 <body>
-
     <aside id="sidebar">
-        <div class="sidebar-header">
-            <h2>CS2 道具库</h2>
-            <button id="btn-mode">浏览模式</button>
-        </div>
+        <div class="sidebar-header"><h2>CS2 道具库</h2><button id="btn-mode">浏览模式</button></div>
         <div class="sidebar-controls">
             <button id="btn-init-fs">📁 初始化存储目录</button>
             <input type="text" id="search-input" placeholder="搜索道具名称...">
             <div class="filters">
-                <select id="filter-type">
-                    <option value="all">全部类型</option>
-                    <option value="smoke">烟 🌫️</option>
-                    <option value="flash">闪 💥</option>
-                    <option value="he">雷 💣</option>
-                    <option value="molotov">火 🔥</option>
-                </select>
+                <select id="filter-type"><option value="all">全部类型</option><option value="smoke">烟 🌫️</option><option value="flash">闪 💥</option><option value="he">雷 💣</option><option value="molotov">火 🔥</option></select>
                 <label class="fav-filter"><input type="checkbox" id="filter-fav"> 仅收藏</label>
             </div>
-            <div class="io-buttons">
-                <button id="btn-export">导出备份</button>
-                <button id="btn-import">导入数据</button>
-                <input type="file" id="import-file" accept=".json" hidden>
-            </div>
+            <div class="io-buttons"><button id="btn-export">导出备份</button><button id="btn-import">导入数据</button><input type="file" id="import-file" accept=".json" hidden></div>
         </div>
         <div id="utility-list" class="sidebar-list"></div>
     </aside>
 
     <main id="map-container">
-        <div id="map-wrapper">
-            <img id="dust2-map" src="dust2.png" alt="Dust2 Map">
-        </div>
+        <div id="map-wrapper"><img id="dust2-map" src="dust2.png" alt="Dust2 Map"></div>
         <div id="points-layer"></div>
+        <div id="aim-overlay">
+            <div id="crosshair"><div></div><div></div><div></div></div>
+            <div class="aim-hint">🎯 拖动移动地图 · 双指缩放 · 将目标对准中心准星</div>
+            <div class="aim-controls">
+                <button id="aim-confirm" class="aim-btn">✓ 确认放置</button>
+                <button id="aim-cancel" class="aim-btn">✕ 取消</button>
+            </div>
+        </div>
     </main>
 
-    <!-- 添加/编辑 弹窗 -->
+    <!-- 添加/编辑弹窗 -->
     <div id="modal-add" class="modal">
         <div class="modal-content">
             <h3 id="modal-add-title">添加道具</h3>
             <form id="form-add">
-                <div class="form-group">
-                    <label>名称</label>
-                    <input type="text" id="input-name" required placeholder="例如：A大过点烟">
-                </div>
-                <div class="form-group">
-                    <label>简介</label>
-                    <textarea id="input-desc" rows="3" placeholder="描述道具的用途和注意事项..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>道具类型</label>
-                    <div class="type-selector">
-                        <label><input type="radio" name="type" value="smoke" checked> 烟 🌫️</label>
-                        <label><input type="radio" name="type" value="flash"> 闪 💥</label>
-                        <label><input type="radio" name="type" value="he"> 雷 💣</label>
-                        <label><input type="radio" name="type" value="molotov"> 火 🔥</label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>自定义颜色</label>
-                    <input type="color" id="input-color" value="#4D90FE">
-                </div>
-                <div class="form-group">
-                    <label>分类标签 (输入后按回车)</label>
-                    <input type="text" id="input-tags" placeholder="例如: A大, 单人" list="preset-tags">
-                    <datalist id="preset-tags">
-                        <option value="A大"><option value="A小"><option value="B洞"><option value="中门">
-                        <option value="香蕉道"><option value="CT"><option value="T"><option value="简单">
-                    </datalist>
-                    <div id="tags-container" class="tags-container"></div>
-                </div>
-                
-                <!-- 三桶图片上传 (支持拖拽排序) -->
-                <div class="bucket-section">
-                    <div class="bucket-title">📍 站位截图 (Lineup) <span style="font-size:11px;color:#888;font-weight:normal">拖拽调整顺序，首位为主图</span></div>
-                    <div class="bucket-grid" id="grid-lineup"></div>
-                    <div class="img-slot" id="add-lineup" style="margin-top:10px;">+ 添加 / 拖入图片</div>
-                </div>
-                <div class="bucket-section">
-                    <div class="bucket-title">🤚 出手截图 (Throw)</div>
-                    <div class="bucket-grid" id="grid-throw"></div>
-                    <div class="img-slot" id="add-throw" style="margin-top:10px;">+ 添加 / 拖入图片</div>
-                </div>
-                <div class="bucket-section">
-                    <div class="bucket-title">💥 效果截图 (Effect)</div>
-                    <div class="bucket-grid" id="grid-effect"></div>
-                    <div class="img-slot" id="add-effect" style="margin-top:10px;">+ 添加 / 拖入图片</div>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" id="btn-cancel-add">取消</button>
-                    <button type="submit" class="btn-submit">保存</button>
-                </div>
+                <div class="form-group"><label>名称</label><input type="text" id="input-name" required placeholder="例如：A大过点烟"></div>
+                <div class="form-group"><label>简介</label><textarea id="input-desc" rows="3" placeholder="描述道具的用途和注意事项..."></textarea></div>
+                <div class="form-group"><label>道具类型</label><div class="type-selector"><label><input type="radio" name="type" value="smoke" checked> 烟 🌫️</label><label><input type="radio" name="type" value="flash"> 闪 💥</label><label><input type="radio" name="type" value="he"> 雷 💣</label><label><input type="radio" name="type" value="molotov"> 火 🔥</label></div></div>
+                <div class="form-group"><label>自定义颜色</label><input type="color" id="input-color" value="#4D90FE" style="height:44px;padding:4px;"></div>
+                <div class="form-group"><label>分类标签 (输入后按回车)</label><input type="text" id="input-tags" placeholder="例如: A大, 单人" list="preset-tags"><datalist id="preset-tags"><option value="A大"><option value="A小"><option value="B洞"><option value="中门"><option value="香蕉道"><option value="CT"><option value="T"><option value="简单"></datalist><div id="tags-container" class="tags-container"></div></div>
+                <div class="bucket-section"><div class="bucket-title">📍 站位截图 (Lineup) <span style="font-size:12px;color:#888;font-weight:normal">拖拽调整顺序，首位为主图</span></div><div class="bucket-grid" id="grid-lineup"></div><div class="img-slot" id="add-lineup" style="margin-top:12px;">+ 添加 / 拖入图片</div></div>
+                <div class="bucket-section"><div class="bucket-title">🤚 出手截图 (Throw)</div><div class="bucket-grid" id="grid-throw"></div><div class="img-slot" id="add-throw" style="margin-top:12px;">+ 添加 / 拖入图片</div></div>
+                <div class="bucket-section"><div class="bucket-title">💥 效果截图 (Effect)</div><div class="bucket-grid" id="grid-effect"></div><div class="img-slot" id="add-effect" style="margin-top:12px;">+ 添加 / 拖入图片</div></div>
+                <div class="form-actions"><button type="button" class="btn-cancel" id="btn-cancel-add">取消</button><button type="submit" class="btn-submit">保存</button></div>
             </form>
         </div>
     </div>
 
-    <!-- 详情 弹窗 -->
+    <!-- 详情弹窗 -->
     <div id="modal-detail" class="modal detail-modal">
         <div class="modal-content">
-            <div class="detail-header">
-                <h2 id="detail-name"></h2>
-                <div class="detail-actions">
-                    <button id="btn-fav">收藏</button>
-                    <button id="btn-edit">编辑</button>
-                    <button id="btn-delete">删除</button>
-                    <button id="btn-close-detail">&times;</button>
-                </div>
-            </div>
+            <div class="detail-header"><h2 id="detail-name"></h2><div class="detail-actions"><button id="btn-fav">收藏</button><button id="btn-edit">编辑</button><button id="btn-delete">删除</button><button id="btn-close-detail">&times;</button></div></div>
             <div class="detail-body">
                 <p id="detail-desc" class="detail-desc"></p>
                 <div id="detail-tags" class="tags-container" style="margin-bottom:20px;"></div>
-                
-                <div class="main-viewer-wrapper">
-                    <button class="nav-btn prev" id="viewer-prev">&#10094;</button>
-                    <div class="main-viewer" id="main-viewer">
-                        <img id="viewer-img" src="">
-                        <span id="viewer-label"></span>
-                    </div>
-                    <button class="nav-btn next" id="viewer-next">&#10095;</button>
-                </div>
-                <div class="thumb-nav" id="thumb-nav"></div>
+                <div id="detail-images-container"></div>
             </div>
         </div>
     </div>
 
     <!-- 全屏查看器 -->
-    <div id="fullscreen-viewer">
-        <button id="fs-close">&times;</button>
-        <img id="fs-img" src="">
-    </div>
+    <div id="fullscreen-viewer"><button id="fs-close">&times;</button><img id="fs-img" src=""></div>
 
 <script>
-    // ================= File System Access API 核心 =================
-    let dirHandle = null;
-    let utilities = [];
-    let isDirty = false;
-
+    // ================= File System Access API =================
+    let dirHandle = null, utilities = [], isDirty = false;
     const TYPE_COLORS = { smoke: '#4D90FE', flash: '#FCE883', he: '#E53935', molotov: '#FF9800' };
     const TYPE_ICONS = { smoke: '🌫️', flash: '💥', he: '💣', molotov: '🔥' };
     const supportsFS = ('showDirectoryPicker' in window);
 
     async function initFileSystem() {
         if (!supportsFS) { alert('当前浏览器不支持文件系统API，请使用 Chrome 或 Edge。'); return; }
-        try {
-            dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-            await loadDataFromFS();
-            updateFSButton(true);
-            isDirty = false;
-            renderAll();
-        } catch (e) { console.log('用户取消授权', e); }
+        try { dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' }); await loadDataFromFS(); updateFSButton(true); isDirty = false; renderAll(); } catch (e) {}
     }
-
-    async function loadDataFromFS() {
-        try {
-            const fileHandle = await dirHandle.getFileHandle('data.json', { create: true });
-            const file = await fileHandle.getFile();
-            utilities = file.size > 0 ? JSON.parse(await file.text()) : [];
-        } catch (e) { utilities = []; }
-    }
-
-    async function saveToFS() {
-        if (!dirHandle) { alert('请先初始化存储目录！'); return; }
-        try {
-            const jsonHandle = await dirHandle.getFileHandle('data.json', { create: true });
-            const writable = await jsonHandle.createWritable();
-            await writable.write(JSON.stringify(utilities, null, 2));
-            await writable.close();
-            isDirty = false;
-            updateFSButton(true);
-        } catch (e) { alert('保存失败: ' + e.message); }
-    }
-
-    function updateFSButton(connected) {
-        const btn = document.getElementById('btn-init-fs');
-        btn.textContent = connected ? '✅ 已连接存储目录' : '📁 初始化存储目录';
-        btn.classList.toggle('connected', connected);
-    }
-
+    async function loadDataFromFS() { try { const fh = await dirHandle.getFileHandle('data.json', { create: true }); const f = await fh.getFile(); utilities = f.size > 0 ? JSON.parse(await f.text()) : []; } catch (e) { utilities = []; } }
+    async function saveToFS() { if (!dirHandle) { alert('请先初始化存储目录！'); return; } try { const fh = await dirHandle.getFileHandle('data.json', { create: true }); const w = await fh.createWritable(); await w.write(JSON.stringify(utilities, null, 2)); await w.close(); isDirty = false; updateFSButton(true); } catch (e) { alert('保存失败: ' + e.message); } }
+    function updateFSButton(c) { const b = document.getElementById('btn-init-fs'); b.textContent = c ? '✅ 已连接存储目录' : '📁 初始化存储目录'; b.classList.toggle('connected', c); }
     window.addEventListener('beforeunload', (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } });
 
     // ================= 地图引擎 =================
-    let scale = 1, tx = 0, ty = 0;
-    let isEditMode = false;
-    let isDragging = false, hasDragged = false, dragStartX, dragStartY;
-    const mapContainer = document.getElementById('map-container');
-    const mapWrapper = document.getElementById('map-wrapper');
-    const img = document.getElementById('dust2-map');
-    const pointsLayer = document.getElementById('points-layer');
+    let scale = 1, tx = 0, ty = 0, isEditMode = false, isDragging = false, hasDragged = false, dragStartX, dragStartY;
+    const mapContainer = document.getElementById('map-container'), mapWrapper = document.getElementById('map-wrapper'), img = document.getElementById('dust2-map'), pointsLayer = document.getElementById('points-layer');
 
-    function applyTransform() {
-        mapWrapper.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
-        updatePointsPosition();
-    }
-
-    function resetMapView() {
-        const cw = mapContainer.clientWidth, ch = mapContainer.clientHeight;
-        if (img.naturalWidth === 0) return;
-        scale = ch / img.naturalHeight;
-        tx = (cw - img.naturalWidth * scale) / 2;
-        ty = 0;
-        applyTransform();
-    }
-
+    function applyTransform() { mapWrapper.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`; updatePointsPosition(); }
+    function resetMapView() { const cw = mapContainer.clientWidth, ch = mapContainer.clientHeight; if (img.naturalWidth === 0) return; scale = ch / img.naturalHeight; tx = (cw - img.naturalWidth * scale) / 2; ty = 0; applyTransform(); }
     img.onload = () => { resetMapView(); renderPoints(); };
-    img.onerror = () => { mapContainer.innerHTML = `<div style="color:white;text-align:center;margin-top:20%;">未找到 dust2.png</div>`; };
+    img.onerror = () => { mapContainer.innerHTML = '<div style="color:white;text-align:center;margin-top:20%;">未找到 dust2.png</div>'; };
 
-    mapContainer.addEventListener('wheel', (e) => {
+    mapContainer.addEventListener('wheel', (e) => { e.preventDefault(); const r = mapContainer.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; const mapX = (mx - tx) / scale, mapY = (my - ty) / scale; const ns = Math.min(Math.max(scale * (e.deltaY < 0 ? 1.1 : 0.9), 0.2), 8); tx = mx - mapX * ns; ty = my - mapY * ns; scale = ns; applyTransform(); }, { passive: false });
+    mapContainer.addEventListener('mousedown', (e) => { if (e.button === 0 && !isAiming) { dragStartX = e.clientX; dragStartY = e.clientY; isDragging = true; hasDragged = false; mapContainer.classList.add('grabbing'); } });
+    window.addEventListener('mousemove', (e) => { if (isDragging && !isAiming) { if (Math.abs(e.clientX - dragStartX) > 3 || Math.abs(e.clientY - dragStartY) > 3) hasDragged = true; if (hasDragged) { tx += e.movementX; ty += e.movementY; applyTransform(); } } });
+    window.addEventListener('mouseup', () => { isDragging = false; mapContainer.classList.remove('grabbing'); });
+
+    let lastTouchDist = 0;
+    mapContainer.addEventListener('touchstart', (e) => { if (isAiming || isEditMode) return; if (e.touches.length === 2) lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); else if (e.touches.length === 1) { dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY; isDragging = true; hasDragged = false; } }, { passive: false });
+    mapContainer.addEventListener('touchmove', (e) => { if (isAiming || isEditMode) return; e.preventDefault(); if (e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const ns = Math.min(Math.max(scale * (d / lastTouchDist), 0.2), 8); const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2, cy = (e.touches[0].clientY + e.touches[1].clientY) / 2; const r = mapContainer.getBoundingClientRect(), mcx = (cx - r.left - tx) / scale, mcy = (cy - r.top - ty) / scale; tx = cx - r.left - mcx * ns; ty = cy - r.top - mcy * ns; scale = ns; lastTouchDist = d; applyTransform(); } else if (e.touches.length === 1 && isDragging) { const dx = e.touches[0].clientX - dragStartX, dy = e.touches[0].clientY - dragStartY; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true; if (hasDragged) { tx += dx; ty += dy; dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY; applyTransform(); } } }, { passive: false });
+    mapContainer.addEventListener('touchend', () => { isDragging = false; });
+
+    // ================= 瞄准模式 =================
+    const aimOverlay = document.getElementById('aim-overlay');
+    let isAiming = false, aimLastTouchDist = 0, aimTouchStartTarget = null;
+
+    // 【修复1】进入编辑模式立即激活准星
+    function enterAimMode() { isAiming = true; aimOverlay.style.display = 'block'; mapContainer.classList.add('grabbing'); }
+    // 【修复2】选点时取消 = 退出编辑模式回到浏览模式
+    function exitAimModeAndBrowse() {
+        isAiming = false; aimOverlay.style.display = 'none'; mapContainer.classList.remove('grabbing');
+        isEditMode = false;
+        const btn = document.getElementById('btn-mode');
+        btn.textContent = '浏览模式'; btn.classList.remove('active');
+        mapContainer.classList.remove('edit-mode');
+    }
+    // 【修复3】填表时取消 = 返回准星选点（不退出编辑模式）
+    function exitAimOnly() { isAiming = false; aimOverlay.style.display = 'none'; mapContainer.classList.remove('grabbing'); }
+
+    mapContainer.addEventListener('contextmenu', (e) => { if (isEditMode) e.preventDefault(); });
+
+    aimOverlay.addEventListener('touchstart', (e) => {
+        if (!isAiming) return;
+        if (e.target.closest('.aim-btn')) { aimTouchStartTarget = e.target; return; }
         e.preventDefault();
-        const rect = mapContainer.getBoundingClientRect();
-        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-        const mapX = (mx - tx) / scale, mapY = (my - ty) / scale;
-        const newScale = Math.min(Math.max(scale * (e.deltaY < 0 ? 1.1 : 0.9), 0.2), 8);
-        tx = mx - mapX * newScale; ty = my - mapY * newScale;
-        scale = newScale;
-        applyTransform();
+        if (e.touches.length === 2) aimLastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        else if (e.touches.length === 1) { dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY; isDragging = true; }
     }, { passive: false });
-
-    mapContainer.addEventListener('mousedown', (e) => { if(e.button===0) { dragStartX=e.clientX; dragStartY=e.clientY; isDragging=true; hasDragged=false; mapContainer.classList.add('grabbing'); }});
-    window.addEventListener('mousemove', (e) => { if(isDragging) { if(Math.abs(e.clientX-dragStartX)>3||Math.abs(e.clientY-dragStartY)>3) hasDragged=true; if(hasDragged) { tx+=e.movementX; ty+=e.movementY; applyTransform(); }}});
-    window.addEventListener('mouseup', () => { isDragging=false; mapContainer.classList.remove('grabbing'); });
-
-    mapContainer.addEventListener('contextmenu', (e) => {
+    aimOverlay.addEventListener('touchmove', (e) => {
+        if (!isAiming) return;
+        if (aimTouchStartTarget && aimTouchStartTarget.closest('.aim-btn')) return;
         e.preventDefault();
-        if (!isEditMode) return;
-        const rect = mapContainer.getBoundingClientRect();
-        const px = ((e.clientX - rect.left - tx) / scale / img.naturalWidth) * 100;
-        const py = ((e.clientY - rect.top - ty) / scale / img.naturalHeight) * 100;
+        if (e.touches.length === 2) {
+            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            const ns = Math.min(Math.max(scale * (d / aimLastTouchDist), 0.5), 12);
+            const r = mapContainer.getBoundingClientRect(), cx = r.width / 2, cy = r.height / 2;
+            const mcx = (cx - tx) / scale, mcy = (cy - ty) / scale;
+            tx = cx - mcx * ns; ty = cy - mcy * ns; scale = ns; aimLastTouchDist = d; applyTransform();
+        } else if (e.touches.length === 1 && isDragging) {
+            tx += e.touches[0].clientX - dragStartX; ty += e.touches[0].clientY - dragStartY;
+            dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY; applyTransform();
+        }
+    }, { passive: false });
+    aimOverlay.addEventListener('touchend', () => { isDragging = false; aimTouchStartTarget = null; });
+
+    aimOverlay.addEventListener('mousedown', (e) => { if (e.button === 0 && !e.target.closest('.aim-btn')) { dragStartX = e.clientX; dragStartY = e.clientY; isDragging = true; } });
+    window.addEventListener('mousemove', (e) => { if (isAiming && isDragging && !e.target.closest('.aim-btn')) { tx += e.movementX; ty += e.movementY; applyTransform(); } });
+    window.addEventListener('mouseup', () => { if (isAiming) isDragging = false; });
+    aimOverlay.addEventListener('wheel', (e) => { e.preventDefault(); const ns = Math.min(Math.max(scale * (e.deltaY < 0 ? 1.15 : 0.87), 0.5), 12); const r = mapContainer.getBoundingClientRect(), cx = r.width / 2, cy = r.height / 2; const mcx = (cx - tx) / scale, mcy = (cy - ty) / scale; tx = cx - mcx * ns; ty = cy - mcy * ns; scale = ns; applyTransform(); }, { passive: false });
+
+    document.getElementById('aim-confirm').onclick = (e) => {
+        e.stopPropagation();
+        const r = mapContainer.getBoundingClientRect(), cx = r.width / 2, cy = r.height / 2;
+        const mx = (cx - tx) / scale, my = (cy - ty) / scale;
+        const px = (mx / img.naturalWidth) * 100, py = (my / img.naturalHeight) * 100;
         if (px >= 0 && px <= 100 && py >= 0 && py <= 100) openAddModal(px, py);
-    });
+        else alert('准心超出地图范围');
+        exitAimOnly(); // 确认后隐藏准星，弹出表单
+    };
+    // 【修复2】选点取消 = 直接回浏览模式
+    document.getElementById('aim-cancel').onclick = (e) => { e.stopPropagation(); exitAimModeAndBrowse(); };
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isAiming) exitAimModeAndBrowse(); });
 
     // ================= 点位渲染 =================
-    function renderPoints() {
-        pointsLayer.innerHTML = '';
-        utilities.forEach(ut => {
-            const el = document.createElement('div');
-            el.className = 'map-point' + (ut.isFavorite ? ' favorite' : '');
-            el.style.backgroundColor = ut.color;
-            el.title = ut.name;
-            el.dataset.id = ut.id;
-            el.onclick = (e) => { e.stopPropagation(); showDetailModal(ut); };
-            pointsLayer.appendChild(el);
-        });
-        updatePointsPosition();
-    }
-
-    function updatePointsPosition() {
-        Array.from(pointsLayer.children).forEach(el => {
-            const ut = utilities.find(u => u.id === el.dataset.id);
-            if (!ut) return;
-            el.style.left = ((ut.x / 100) * img.naturalWidth * scale + tx) + 'px';
-            el.style.top = ((ut.y / 100) * img.naturalHeight * scale + ty) + 'px';
-        });
-    }
+    function renderPoints() { pointsLayer.innerHTML = ''; utilities.forEach(ut => { const el = document.createElement('div'); el.className = 'map-point' + (ut.isFavorite ? ' favorite' : ''); el.style.backgroundColor = ut.color; el.title = ut.name; el.dataset.id = ut.id; el.onclick = (e) => { e.stopPropagation(); showDetailModal(ut); }; pointsLayer.appendChild(el); }); updatePointsPosition(); }
+    function updatePointsPosition() { Array.from(pointsLayer.children).forEach(el => { const ut = utilities.find(u => u.id === el.dataset.id); if (!ut) return; el.style.left = ((ut.x / 100) * img.naturalWidth * scale + tx) + 'px'; el.style.top = ((ut.y / 100) * img.naturalHeight * scale + ty) + 'px'; }); }
 
     // ================= 侧边栏 =================
-    function renderSidebar() {
-        const listEl = document.getElementById('utility-list'); listEl.innerHTML = '';
-        const search = document.getElementById('search-input').value.toLowerCase();
-        const type = document.getElementById('filter-type').value;
-        const fav = document.getElementById('filter-fav').checked;
-        [...utilities].sort((a,b) => b.createdAt - a.createdAt).forEach(item => {
-            if (type !== 'all' && item.type !== type) return;
-            if (fav && !item.isFavorite) return;
-            if (search && !item.name.toLowerCase().includes(search)) return;
-            const el = document.createElement('div'); el.className = 'list-item';
-            el.innerHTML = `<span class="icon">${TYPE_ICONS[item.type]}</span><span class="name">${item.name}</span><span class="fav">${item.isFavorite?'⭐':''}</span>`;
-            el.onclick = () => focusOnPoint(item);
-            listEl.appendChild(el);
-        });
-    }
-
-    function focusOnPoint(item) {
-        const cw = mapContainer.clientWidth, ch = mapContainer.clientHeight;
-        mapWrapper.classList.add('smooth-pan'); pointsLayer.classList.add('smooth-pan');
-        tx = (cw / 2) - ((item.x / 100) * img.naturalWidth * scale);
-        ty = (ch / 2) - ((item.y / 100) * img.naturalHeight * scale);
-        applyTransform();
-        setTimeout(() => { mapWrapper.classList.remove('smooth-pan'); pointsLayer.classList.remove('smooth-pan'); }, 500);
-        showDetailModal(item);
-    }
-
+    function renderSidebar() { const l = document.getElementById('utility-list'); l.innerHTML = ''; const s = document.getElementById('search-input').value.toLowerCase(), t = document.getElementById('filter-type').value, f = document.getElementById('filter-fav').checked; [...utilities].sort((a, b) => b.createdAt - a.createdAt).forEach(i => { if (t !== 'all' && i.type !== t) return; if (f && !i.isFavorite) return; if (s && !i.name.toLowerCase().includes(s)) return; const el = document.createElement('div'); el.className = 'list-item'; el.innerHTML = `<span class="icon">${TYPE_ICONS[i.type]}</span><span class="name">${i.name}</span><span class="fav">${i.isFavorite ? '⭐' : ''}</span>`; el.onclick = () => focusOnPoint(i); l.appendChild(el); }); }
+    function focusOnPoint(item) { const cw = mapContainer.clientWidth, ch = mapContainer.clientHeight; mapWrapper.classList.add('smooth-pan'); pointsLayer.classList.add('smooth-pan'); tx = (cw / 2) - ((item.x / 100) * img.naturalWidth * scale); ty = (ch / 2) - ((item.y / 100) * img.naturalHeight * scale); applyTransform(); setTimeout(() => { mapWrapper.classList.remove('smooth-pan'); pointsLayer.classList.remove('smooth-pan'); }, 500); showDetailModal(item); }
     function renderAll() { renderPoints(); renderSidebar(); }
 
-    // ================= 编辑表单 (含拖拽排序) =================
-    let editingId = null, pendingX = 0, pendingY = 0, currentTags = [];
-    let tempImages = { lineup: [], throw: [], effect: [] };
-    let dragSrcSlot = null;
+    // ================= 编辑表单 =================
+    let editingId = null, pendingX = 0, pendingY = 0, currentTags = [], tempImages = { lineup: [], throw: [], effect: [] }, dragSrcSlot = null;
 
-    function openAddModal(x, y) {
-        editingId = null; pendingX = x; pendingY = y;
-        document.getElementById('modal-add-title').textContent = '添加道具';
-        document.getElementById('form-add').reset();
-        document.getElementById('input-color').value = TYPE_COLORS.smoke;
-        currentTags = []; renderTags();
-        tempImages = { lineup: [], throw: [], effect: [] };
-        renderBucketGrids();
-        document.getElementById('modal-add').style.display = 'flex';
-    }
-
-    function openEditModal(item) {
-        editingId = item.id; pendingX = item.x; pendingY = item.y;
-        document.getElementById('modal-add-title').textContent = '编辑道具';
-        document.getElementById('input-name').value = item.name;
-        document.getElementById('input-desc').value = item.description;
-        document.querySelector(`input[name="type"][value="${item.type}"]`).checked = true;
-        document.getElementById('input-color').value = item.color;
-        currentTags = [...item.tags]; renderTags();
-        tempImages = {
-            lineup: (item.lineup || []).map(i => ({...i})),
-            throw: (item.throw || []).map(i => ({...i})),
-            effect: (item.effect || []).map(i => ({...i}))
-        };
-        renderBucketGrids();
-        document.getElementById('modal-add').style.display = 'flex';
-    }
-
-    function renderBucketGrids() {
-        ['lineup', 'throw', 'effect'].forEach(cat => {
-            const grid = document.getElementById(`grid-${cat}`);
-            grid.innerHTML = '';
-            tempImages[cat].forEach((imgData, idx) => {
-                const slot = document.createElement('div');
-                slot.className = 'img-slot' + (idx === 0 ? ' is-main' : '');
-                slot.style.backgroundImage = `url(${imgData.base64})`;
-                slot.draggable = true;
-                slot.dataset.idx = idx;
-                slot.dataset.cat = cat;
-                
-                // 拖拽排序事件
-                slot.addEventListener('dragstart', handleDragStart);
-                slot.addEventListener('dragover', handleDragOver);
-                slot.addEventListener('drop', handleDrop);
-                slot.addEventListener('dragenter', (e) => { e.preventDefault(); slot.classList.add('drag-target'); });
-                slot.addEventListener('dragleave', () => slot.classList.remove('drag-target'));
-                
-                slot.innerHTML = `<div class="del-img">&times;</div>`;
-                slot.querySelector('.del-img').onclick = (e) => {
-                    e.stopPropagation();
-                    tempImages[cat].splice(idx, 1);
-                    renderBucketGrids();
-                };
-                grid.appendChild(slot);
-            });
-        });
-    }
-
-    // 拖拽排序逻辑
-    function handleDragStart(e) {
-        dragSrcSlot = this;
-        e.dataTransfer.effectAllowed = 'move';
-        this.style.opacity = '0.4';
-    }
-
-    function handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    }
-
-    function handleDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.classList.remove('drag-target');
-        dragSrcSlot.style.opacity = '1';
-        
-        if (dragSrcSlot === this) return;
-        if (dragSrcSlot.dataset.cat !== this.dataset.cat) return; // 不允许跨桶拖拽
-        
-        const cat = this.dataset.cat;
-        const srcIdx = parseInt(dragSrcSlot.dataset.idx);
-        const destIdx = parseInt(this.dataset.idx);
-        
-        const item = tempImages[cat].splice(srcIdx, 1)[0];
-        tempImages[cat].splice(destIdx, 0, item);
-        renderBucketGrids();
-    }
-
-    function setupBucketUpload(cat) {
-        const addBtn = document.getElementById(`add-${cat}`);
-        const input = document.createElement('input');
-        input.type = 'file'; input.accept = 'image/*'; input.multiple = true; input.style.display = 'none';
-        document.body.appendChild(input);
-        addBtn.onclick = () => input.click();
-        input.onchange = (e) => {
-            Array.from(e.target.files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    tempImages[cat].push({ id: generateUUID(), base64: ev.target.result });
-                    renderBucketGrids();
-                };
-                reader.readAsDataURL(file);
-            });
-            input.value = '';
-        };
-        addBtn.addEventListener('dragover', (e) => { e.preventDefault(); addBtn.classList.add('dragover'); });
-        addBtn.addEventListener('dragleave', () => addBtn.classList.remove('dragover'));
-        addBtn.addEventListener('drop', (e) => {
-            e.preventDefault(); addBtn.classList.remove('dragover');
-            Array.from(e.dataTransfer.files).forEach(file => {
-                if (!file.type.startsWith('image/')) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    tempImages[cat].push({ id: generateUUID(), base64: ev.target.result });
-                    renderBucketGrids();
-                };
-                reader.readAsDataURL(file);
-            });
-        });
-    }
+    function openAddModal(x, y) { editingId = null; pendingX = x; pendingY = y; document.getElementById('modal-add-title').textContent = '添加道具'; document.getElementById('form-add').reset(); document.getElementById('input-color').value = TYPE_COLORS.smoke; currentTags = []; renderTags(); tempImages = { lineup: [], throw: [], effect: [] }; renderBucketGrids(); document.getElementById('modal-add').style.display = 'flex'; }
+    function openEditModal(item) { editingId = item.id; pendingX = item.x; pendingY = item.y; document.getElementById('modal-add-title').textContent = '编辑道具'; document.getElementById('input-name').value = item.name; document.getElementById('input-desc').value = item.description; document.querySelector(`input[name="type"][value="${item.type}"]`).checked = true; document.getElementById('input-color').value = item.color; currentTags = [...item.tags]; renderTags(); tempImages = { lineup: (item.lineup || []).map(i => ({ ...i })), throw: (item.throw || []).map(i => ({ ...i })), effect: (item.effect || []).map(i => ({ ...i })) }; renderBucketGrids(); document.getElementById('modal-add').style.display = 'flex'; }
+    function renderBucketGrids() { ['lineup', 'throw', 'effect'].forEach(cat => { const g = document.getElementById(`grid-${cat}`); g.innerHTML = ''; tempImages[cat].forEach((imgData, idx) => { const s = document.createElement('div'); s.className = 'img-slot' + (idx === 0 ? ' is-main' : ''); s.style.backgroundImage = `url(${imgData.base64})`; s.draggable = true; s.dataset.idx = idx; s.dataset.cat = cat; s.addEventListener('dragstart', handleDragStart); s.addEventListener('dragover', handleDragOver); s.addEventListener('drop', handleDrop); s.addEventListener('dragenter', (e) => { e.preventDefault(); s.classList.add('drag-target'); }); s.addEventListener('dragleave', () => s.classList.remove('drag-target')); s.innerHTML = '<div class="del-img">&times;</div>'; s.querySelector('.del-img').onclick = (e) => { e.stopPropagation(); tempImages[cat].splice(idx, 1); renderBucketGrids(); }; g.appendChild(s); }); }); }
+    function handleDragStart(e) { dragSrcSlot = this; e.dataTransfer.effectAllowed = 'move'; this.style.opacity = '0.4'; }
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+    function handleDrop(e) { e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-target'); dragSrcSlot.style.opacity = '1'; if (dragSrcSlot === this || dragSrcSlot.dataset.cat !== this.dataset.cat) return; const cat = this.dataset.cat, si = parseInt(dragSrcSlot.dataset.idx), di = parseInt(this.dataset.idx); const item = tempImages[cat].splice(si, 1)[0]; tempImages[cat].splice(di, 0, item); renderBucketGrids(); }
+    function setupBucketUpload(cat) { const btn = document.getElementById(`add-${cat}`), inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.style.display = 'none'; document.body.appendChild(inp); btn.onclick = () => inp.click(); inp.onchange = (e) => { Array.from(e.target.files).forEach(f => { const r = new FileReader(); r.onload = (ev) => { tempImages[cat].push({ id: generateUUID(), base64: ev.target.result }); renderBucketGrids(); }; r.readAsDataURL(f); }); inp.value = ''; }; btn.addEventListener('dragover', (e) => { e.preventDefault(); btn.classList.add('dragover'); }); btn.addEventListener('dragleave', () => btn.classList.remove('dragover')); btn.addEventListener('drop', (e) => { e.preventDefault(); btn.classList.remove('dragover'); Array.from(e.dataTransfer.files).forEach(f => { if (!f.type.startsWith('image/')) return; const r = new FileReader(); r.onload = (ev) => { tempImages[cat].push({ id: generateUUID(), base64: ev.target.result }); renderBucketGrids(); }; r.readAsDataURL(f); }); }); }
     ['lineup', 'throw', 'effect'].forEach(setupBucketUpload);
 
-    // 标签逻辑
     const tagsInput = document.getElementById('input-tags');
-    tagsInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && tagsInput.value.trim()) {
-            e.preventDefault();
-            if (!currentTags.includes(tagsInput.value.trim())) { currentTags.push(tagsInput.value.trim()); renderTags(); }
-            tagsInput.value = '';
-        }
-    });
-    function renderTags() {
-        const c = document.getElementById('tags-container'); c.innerHTML = '';
-        currentTags.forEach(tag => {
-            const pill = document.createElement('span'); pill.className = 'tag-pill';
-            pill.innerHTML = `${tag} <span class="remove-tag">&times;</span>`;
-            pill.querySelector('.remove-tag').onclick = () => { currentTags = currentTags.filter(t => t !== tag); renderTags(); };
-            c.appendChild(pill);
-        });
-    }
-
-    document.getElementById('form-add').onsubmit = async (e) => {
-        e.preventDefault();
-        const id = editingId || generateUUID();
-        const item = {
-            id, name: document.getElementById('input-name').value,
-            description: document.getElementById('input-desc').value,
-            type: document.querySelector('input[name="type"]:checked').value,
-            color: document.getElementById('input-color').value,
-            tags: [...currentTags], x: pendingX, y: pendingY,
-            lineup: tempImages.lineup, throw: tempImages.throw, effect: tempImages.effect,
-            isFavorite: editingId ? (utilities.find(u => u.id === editingId)?.isFavorite || false) : false,
-            createdAt: editingId ? (utilities.find(u => u.id === editingId)?.createdAt || Date.now()) : Date.now()
-        };
-        const idx = utilities.findIndex(u => u.id === id);
-        if (idx >= 0) utilities[idx] = item; else utilities.push(item);
-        isDirty = true; await saveToFS(); renderAll();
+    tagsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && tagsInput.value.trim()) { e.preventDefault(); if (!currentTags.includes(tagsInput.value.trim())) { currentTags.push(tagsInput.value.trim()); renderTags(); } tagsInput.value = ''; } });
+    function renderTags() { const c = document.getElementById('tags-container'); c.innerHTML = ''; currentTags.forEach(t => { const p = document.createElement('span'); p.className = 'tag-pill'; p.innerHTML = `${t} <span class="remove-tag">&times;</span>`; p.querySelector('.remove-tag').onclick = () => { currentTags = currentTags.filter(x => x !== t); renderTags(); }; c.appendChild(p); }); }
+    document.getElementById('form-add').onsubmit = async (e) => { e.preventDefault(); const id = editingId || generateUUID(); const item = { id, name: document.getElementById('input-name').value, description: document.getElementById('input-desc').value, type: document.querySelector('input[name="type"]:checked').value, color: document.getElementById('input-color').value, tags: [...currentTags], x: pendingX, y: pendingY, lineup: tempImages.lineup, throw: tempImages.throw, effect: tempImages.effect, isFavorite: editingId ? (utilities.find(u => u.id === editingId)?.isFavorite || false) : false, createdAt: editingId ? (utilities.find(u => u.id === editingId)?.createdAt || Date.now()) : Date.now() }; const idx = utilities.findIndex(u => u.id === id); if (idx >= 0) utilities[idx] = item; else utilities.push(item); isDirty = true; await saveToFS(); renderAll(); document.getElementById('modal-add').style.display = 'none'; };
+    // 【修复3】填表取消 = 返回准星选点模式
+    document.getElementById('btn-cancel-add').onclick = () => {
         document.getElementById('modal-add').style.display = 'none';
+        // 如果是新建（非编辑已有道具），返回准星模式让用户重新选点
+        if (!editingId) {
+            enterAimMode();
+        }
     };
-    document.getElementById('btn-cancel-add').onclick = () => document.getElementById('modal-add').style.display = 'none';
 
-    // ================= 详情弹窗 (含左右按钮 & 主图高亮) =================
+    // ================= 【修复4】详情弹窗：主图顶宽+左右切换+缩略图 =================
     let currentDetailItem = null;
-    let allThumbs = [];
-    let currentThumbIdx = 0;
+    // 每个分类独立的当前索引
+    let detailCatIndex = { lineup: 0, throw: 0, effect: 0 };
 
     function showDetailModal(item) {
         currentDetailItem = item;
         document.getElementById('detail-name').textContent = item.name;
         document.getElementById('detail-desc').textContent = item.description || '暂无简介';
         document.getElementById('btn-fav').textContent = item.isFavorite ? '取消收藏' : '收藏';
-        
-        const tagsEl = document.getElementById('detail-tags'); tagsEl.innerHTML = '';
-        item.tags.forEach(t => { const p = document.createElement('span'); p.className='tag-pill'; p.textContent=t; tagsEl.appendChild(p); });
-        
-        allThumbs = [];
-        const catLabels = { lineup: '站位', throw: '出手', effect: '效果' };
-        ['lineup', 'throw', 'effect'].forEach(cat => {
-            (item[cat] || []).forEach((img, idx) => {
-                allThumbs.push({ src: img.base64, label: `${catLabels[cat]}${idx===0?' (主图)':''}`, category: cat, isMain: idx === 0 });
+        const te = document.getElementById('detail-tags'); te.innerHTML = '';
+        item.tags.forEach(t => { const p = document.createElement('span'); p.className = 'tag-pill'; p.textContent = t; te.appendChild(p); });
+
+        const container = document.getElementById('detail-images-container');
+        container.innerHTML = '';
+        detailCatIndex = { lineup: 0, throw: 0, effect: 0 };
+
+        const cats = [
+            { key: 'lineup', title: '📍 站位截图' },
+            { key: 'throw', title: '🤚 出手截图' },
+            { key: 'effect', title: '💥 效果截图' }
+        ];
+
+        cats.forEach(cat => {
+            const imgs = item[cat.key] || [];
+            if (imgs.length === 0) return;
+
+            const section = document.createElement('div');
+            section.className = 'image-category';
+            section.dataset.cat = cat.key;
+
+            // 标题
+            const title = document.createElement('div');
+            title.className = 'category-title';
+            title.innerHTML = `${cat.title} <span>${imgs.length}张 · 首张为主图</span>`;
+            section.appendChild(title);
+
+            // 主图容器（顶宽 + 左右按钮）
+            const wrapper = document.createElement('div');
+            wrapper.className = 'main-viewer-wrapper';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'nav-btn prev';
+            prevBtn.innerHTML = '&#10094;';
+            prevBtn.onclick = () => switchDetailImage(cat.key, -1);
+
+            const viewer = document.createElement('div');
+            viewer.className = 'main-viewer';
+            viewer.id = `viewer-${cat.key}`;
+            viewer.innerHTML = `<img id="viewer-img-${cat.key}" src=""><span class="main-viewer-label" id="viewer-label-${cat.key}"></span>`;
+            viewer.onclick = () => {
+                const idx = detailCatIndex[cat.key];
+                if (imgs[idx]) openFullscreen(imgs[idx].base64);
+            };
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'nav-btn next';
+            nextBtn.innerHTML = '&#10095;';
+            nextBtn.onclick = () => switchDetailImage(cat.key, 1);
+
+            wrapper.appendChild(prevBtn);
+            wrapper.appendChild(viewer);
+            wrapper.appendChild(nextBtn);
+            section.appendChild(wrapper);
+
+            // 缩略图导航
+            const thumbNav = document.createElement('div');
+            thumbNav.className = 'thumb-nav';
+            thumbNav.id = `thumbs-${cat.key}`;
+            imgs.forEach((imgData, idx) => {
+                const div = document.createElement('div');
+                div.className = 'thumb-item' + (idx === 0 ? ' is-main-thumb' : '') + (idx === 0 ? ' active' : '');
+                div.innerHTML = `<img src="${imgData.base64}" loading="lazy">`;
+                div.onclick = () => setDetailImage(cat.key, idx);
+                thumbNav.appendChild(div);
             });
+            section.appendChild(thumbNav);
+
+            container.appendChild(section);
+
+            // 初始化显示第一张
+            setDetailImage(cat.key, 0);
         });
-        
-        const nav = document.getElementById('thumb-nav'); nav.innerHTML = '';
-        allThumbs.forEach((t, i) => {
-            const div = document.createElement('div');
-            div.className = 'thumb-item' + (t.isMain ? ' is-main-thumb' : '');
-            div.innerHTML = `<img src="${t.src}"><div class="thumb-label">${t.label}</div>`;
-            div.onclick = () => switchMainImage(i);
-            nav.appendChild(div);
-        });
-        
-        if (allThumbs.length > 0) switchMainImage(0);
-        else {
-            document.getElementById('viewer-img').src = '';
-            document.getElementById('viewer-label').textContent = '暂无截图';
-            updateNavButtons();
-        }
+
+        if (container.innerHTML === '') container.innerHTML = '<div style="color:#888;text-align:center;padding:40px 0;">暂无截图</div>';
         document.getElementById('modal-detail').style.display = 'flex';
     }
 
-    function switchMainImage(index) {
-        if (index < 0 || index >= allThumbs.length) return;
-        currentThumbIdx = index;
-        const t = allThumbs[index];
-        document.getElementById('viewer-img').src = t.src;
-        document.getElementById('viewer-label').textContent = t.label;
-        document.querySelectorAll('.thumb-item').forEach((el, i) => el.classList.toggle('active', i === index));
-        updateNavButtons();
+    function setDetailImage(catKey, index) {
+        const imgs = currentDetailItem[catKey] || [];
+        if (index < 0 || index >= imgs.length) return;
+        detailCatIndex[catKey] = index;
+
+        document.getElementById(`viewer-img-${catKey}`).src = imgs[index].base64;
+        document.getElementById(`viewer-label-${catKey}`).textContent = `${index + 1} / ${imgs.length}${index === 0 ? ' (主图)' : ''}`;
+
+        // 更新缩略图高亮
+        const thumbs = document.getElementById(`thumbs-${catKey}`).children;
+        for (let i = 0; i < thumbs.length; i++) thumbs[i].classList.toggle('active', i === index);
+
+        // 更新按钮状态
+        const section = document.querySelector(`.image-category[data-cat="${catKey}"]`);
+        section.querySelector('.nav-btn.prev').disabled = index <= 0;
+        section.querySelector('.nav-btn.next').disabled = index >= imgs.length - 1;
     }
 
-    function updateNavButtons() {
-        document.getElementById('viewer-prev').disabled = currentThumbIdx <= 0;
-        document.getElementById('viewer-next').disabled = currentThumbIdx >= allThumbs.length - 1;
+    function switchDetailImage(catKey, delta) {
+        const imgs = currentDetailItem[catKey] || [];
+        const newIdx = detailCatIndex[catKey] + delta;
+        if (newIdx >= 0 && newIdx < imgs.length) setDetailImage(catKey, newIdx);
     }
-
-    document.getElementById('viewer-prev').onclick = () => switchMainImage(currentThumbIdx - 1);
-    document.getElementById('viewer-next').onclick = () => switchMainImage(currentThumbIdx + 1);
 
     // 全屏查看器
-    const fsViewer = document.getElementById('fullscreen-viewer');
-    const fsImg = document.getElementById('fs-img');
-    let fsScale = 1, fsTx = 0, fsTy = 0, fsDragging = false;
-
-    document.getElementById('main-viewer').onclick = () => {
-        if (allThumbs.length === 0) return;
-        fsImg.src = allThumbs[currentThumbIdx].src;
-        fsScale = 1; fsTx = 0; fsTy = 0;
-        setTimeout(() => {
-            const vw = window.innerWidth, vh = window.innerHeight;
-            const fitScale = Math.min(vw / fsImg.naturalWidth, vh / fsImg.naturalHeight) * 0.9;
-            fsScale = fitScale;
-            fsTx = (vw - fsImg.naturalWidth * fsScale) / 2;
-            fsTy = (vh - fsImg.naturalHeight * fsScale) / 2;
-            applyFsTransform();
-        }, 50);
-        fsViewer.style.display = 'block';
-    };
-
+    const fsViewer = document.getElementById('fullscreen-viewer'), fsImg = document.getElementById('fs-img');
+    let fsScale = 1, fsTx = 0, fsTy = 0, fsDragging = false, fsLastTouchDist = 0;
+    function openFullscreen(src) { fsImg.src = src; fsScale = 1; fsTx = 0; fsTy = 0; setTimeout(() => { const vw = window.innerWidth, vh = window.innerHeight; const fs = Math.min(vw / fsImg.naturalWidth, vh / fsImg.naturalHeight) * 0.9; fsScale = fs; fsTx = (vw - fsImg.naturalWidth * fs) / 2; fsTy = (vh - fsImg.naturalHeight * fs) / 2; applyFsTransform(); }, 50); fsViewer.style.display = 'block'; }
     function applyFsTransform() { fsImg.style.transform = `translate(${fsTx}px,${fsTy}px) scale(${fsScale})`; }
-    fsViewer.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const newScale = Math.min(Math.max(fsScale * (e.deltaY < 0 ? 1.1 : 0.9), 0.1), 10);
-        const mx = e.clientX, my = e.clientY;
-        fsTx = mx - ((mx - fsTx) / fsScale) * newScale;
-        fsTy = my - ((my - fsTy) / fsScale) * newScale;
-        fsScale = newScale;
-        applyFsTransform();
-    }, { passive: false });
-    fsViewer.addEventListener('mousedown', (e) => { if(e.button===0) { fsDragging=true; fsViewer.classList.add('grabbing'); }});
-    fsViewer.addEventListener('mousemove', (e) => { if(fsDragging) { fsTx+=e.movementX; fsTy+=e.movementY; applyFsTransform(); }});
-    fsViewer.addEventListener('mouseup', () => { fsDragging=false; fsViewer.classList.remove('grabbing'); });
+    fsViewer.addEventListener('wheel', (e) => { e.preventDefault(); const ns = Math.min(Math.max(fsScale * (e.deltaY < 0 ? 1.1 : 0.9), 0.1), 10); const mx = e.clientX, my = e.clientY; fsTx = mx - ((mx - fsTx) / fsScale) * ns; fsTy = my - ((my - fsTy) / fsScale) * ns; fsScale = ns; applyFsTransform(); }, { passive: false });
+    fsViewer.addEventListener('mousedown', (e) => { if (e.button === 0) { fsDragging = true; fsViewer.classList.add('grabbing'); } });
+    fsViewer.addEventListener('mousemove', (e) => { if (fsDragging) { fsTx += e.movementX; fsTy += e.movementY; applyFsTransform(); } });
+    fsViewer.addEventListener('mouseup', () => { fsDragging = false; fsViewer.classList.remove('grabbing'); });
+    fsViewer.addEventListener('touchstart', (e) => { if (e.touches.length === 2) fsLastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); else if (e.touches.length === 1) { fsDragging = true; fsViewer.classList.add('grabbing'); } }, { passive: false });
+    fsViewer.addEventListener('touchmove', (e) => { e.preventDefault(); if (e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const ns = Math.min(Math.max(fsScale * (d / fsLastTouchDist), 0.1), 10); const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2, cy = (e.touches[0].clientY + e.touches[1].clientY) / 2; fsTx = cx - ((cx - fsTx) / fsScale) * ns; fsTy = cy - ((cy - fsTy) / fsScale) * ns; fsScale = ns; fsLastTouchDist = d; applyFsTransform(); } else if (e.touches.length === 1 && fsDragging) { fsTx += e.touches[0].movementX; fsTy += e.touches[0].movementY; applyFsTransform(); } }, { passive: false });
+    fsViewer.addEventListener('touchend', () => { fsDragging = false; fsViewer.classList.remove('grabbing'); });
     document.getElementById('fs-close').onclick = () => fsViewer.style.display = 'none';
 
     // 详情按钮
     document.getElementById('btn-close-detail').onclick = () => document.getElementById('modal-detail').style.display = 'none';
-    document.getElementById('btn-fav').onclick = async () => {
-        currentDetailItem.isFavorite = !currentDetailItem.isFavorite;
-        isDirty = true; await saveToFS(); renderAll();
-        document.getElementById('btn-fav').textContent = currentDetailItem.isFavorite ? '取消收藏' : '收藏';
-    };
-    document.getElementById('btn-edit').onclick = () => { document.getElementById('modal-detail').style.display='none'; openEditModal(currentDetailItem); };
-    document.getElementById('btn-delete').onclick = async () => {
-        if(confirm('确定删除？')) {
-            utilities = utilities.filter(u => u.id !== currentDetailItem.id);
-            isDirty = true; await saveToFS(); renderAll();
-            document.getElementById('modal-detail').style.display = 'none';
-        }
-    };
+    document.getElementById('btn-fav').onclick = async () => { currentDetailItem.isFavorite = !currentDetailItem.isFavorite; isDirty = true; await saveToFS(); renderAll(); document.getElementById('btn-fav').textContent = currentDetailItem.isFavorite ? '取消收藏' : '收藏'; };
+    document.getElementById('btn-edit').onclick = () => { document.getElementById('modal-detail').style.display = 'none'; openEditModal(currentDetailItem); };
+    document.getElementById('btn-delete').onclick = async () => { if (confirm('确定删除？')) { utilities = utilities.filter(u => u.id !== currentDetailItem.id); isDirty = true; await saveToFS(); renderAll(); document.getElementById('modal-detail').style.display = 'none'; } };
 
     // ================= 全局控制 =================
-    document.getElementById('btn-init-fs').onclick = initFileSystem;
+    // 【修复1】点击编辑模式立即进入准星
     document.getElementById('btn-mode').onclick = () => {
         isEditMode = !isEditMode;
         const btn = document.getElementById('btn-mode');
-        btn.textContent = isEditMode ? '编辑模式' : '浏览模式';
-        btn.classList.toggle('active', isEditMode);
-        mapContainer.classList.toggle('edit-mode', isEditMode);
+        if (isEditMode) {
+            btn.textContent = '编辑模式'; btn.classList.add('active');
+            mapContainer.classList.add('edit-mode');
+            enterAimMode(); // 立即激活准星
+        } else {
+            btn.textContent = '浏览模式'; btn.classList.remove('active');
+            mapContainer.classList.remove('edit-mode');
+            exitAimOnly();
+        }
     };
-    document.querySelectorAll('input[name="type"]').forEach(r => r.addEventListener('change', (e) => {
-        document.getElementById('input-color').value = TYPE_COLORS[e.target.value];
-    }));
-    ['search-input','filter-type','filter-fav'].forEach(id => {
-        document.getElementById(id).addEventListener('input', renderSidebar);
-        document.getElementById(id).addEventListener('change', renderSidebar);
-    });
-
-    document.getElementById('btn-export').onclick = () => {
-        const blob = new Blob([JSON.stringify(utilities, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `CS2_Dust2_${new Date().toISOString().slice(0,10)}.json`; a.click();
-    };
+    document.getElementById('btn-init-fs').onclick = initFileSystem;
+    document.querySelectorAll('input[name="type"]').forEach(r => r.addEventListener('change', (e) => { document.getElementById('input-color').value = TYPE_COLORS[e.target.value]; }));
+    ['search-input', 'filter-type', 'filter-fav'].forEach(id => { document.getElementById(id).addEventListener('input', renderSidebar); document.getElementById(id).addEventListener('change', renderSidebar); });
+    document.getElementById('btn-export').onclick = () => { const b = new Blob([JSON.stringify(utilities, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `CS2_Dust2_${new Date().toISOString().slice(0, 10)}.json`; a.click(); };
     document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
-    document.getElementById('import-file').onchange = async (e) => {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            try {
-                const items = JSON.parse(ev.target.result);
-                if(Array.isArray(items) && confirm('导入将覆盖现有数据，继续？')) {
-                    utilities = items; isDirty = true; await saveToFS(); renderAll(); alert('导入成功！');
-                }
-            } catch(err) { alert('JSON解析失败'); }
-        };
-        reader.readAsText(file); e.target.value = '';
-    };
-
-    function generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
-        });
-    }
-
-    window.addEventListener('resize', updatePointsPosition);
+    document.getElementById('import-file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = async (ev) => { try { const items = JSON.parse(ev.target.result); if (Array.isArray(items) && confirm('导入将覆盖现有数据，继续？')) { utilities = items; isDirty = true; await saveToFS(); renderAll(); alert('导入成功！'); } } catch (err) { alert('JSON解析失败'); } }; r.readAsText(f); e.target.value = ''; };
+    function generateUUID() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }); }
+    window.addEventListener('resize', () => { updatePointsPosition(); });
 </script>
 </body>
 </html>
