@@ -1,0 +1,30 @@
+[
+  {
+    "id": "dust2",
+    "name": "炙热沙城II",
+    "logo": "maps/dust2/CS2_dust2_logo.webp",
+    "remake": "maps/dust2/CS2_dust2_remake.webp",
+    "radar": "maps/dust2/CS2_dust2_radar.webp",
+    "data": "maps/dust2/dust2_data.zip",
+    "effectRadius": {
+      "smoke": 0.04,
+      "he": 0.026,
+      "molotov": 0.04,
+      "flash": 0
+    }
+  },
+  {
+    "id": "inferno",
+    "name": "炼狱小镇",
+    "logo": "maps/inferno/CS2_inferno_logo.webp",
+    "remake": "maps/inferno/CS2_inferno_remake.webp",
+    "radar": "maps/inferno/CS2_inferno_radar.webp",
+    "data": "maps/inferno/inferno_data.zip",
+    "effectRadius": {
+      "smoke": 0.028,
+      "he": 0.02,
+      "molotov": 0.28,
+      "flash": 0
+    }
+  }
+]
