@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CS2 多地图战术库 (Ultimate Edition V6)</title>
+    <title>CS2 道具备忘录</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -61,7 +61,6 @@
         .sidebar-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); }
         .sidebar-header h2 { font-size: 18px; color: var(--accent-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* ✅ Bug4：修复侧边栏搜索与收藏布局 */
         .sidebar-controls { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
         .search-fav-row { display: flex; align-items: center; gap: 8px; }
         .search-fav-row input[type="text"] { flex: 1; padding: 8px 12px; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px; outline: none; font-size: 13px; }
@@ -100,7 +99,6 @@
         @keyframes pulse-highlight { 0% { box-shadow: 0 0 0 0px rgba(255, 152, 0, 0.9); border-color: #FF9800; transform: scale(1.3); } 50% { box-shadow: 0 0 0 25px rgba(255, 152, 0, 0); border-color: white; transform: scale(1); } 100% { box-shadow: 0 0 0 0px rgba(255, 152, 0, 0); border-color: white; transform: scale(1); } }
         .ping-anim .map-point, .ping-anim .map-land { animation: pulse-highlight 2s cubic-bezier(0.1, 0.8, 0.3, 1); z-index: 25; }
 
-        /* ✅ Bug2：右上角筛选器折叠样式 */
         .top-right-filters { position: absolute; top: 16px; right: 16px; background: rgba(25px, 25px, 25px, 0.9); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 14px; z-index: 50; box-shadow: 0 4px 20px rgba(0,0,0,0.5); overflow: hidden; transition: all 0.3s ease; max-height: 400px; }
         .top-right-filters.collapsed { max-height: 44px; border-radius: 22px; }
         
@@ -230,8 +228,7 @@
             .fab-sidebar { display: flex !important; }
             .modal-window { width: 100% !important; max-width: 100% !important; height: 100% !important; max-height: 100% !important; border-radius: 0 !important; }
             
-            /* ✅ Bug4：移动端侧边栏展开时隐藏搜索/收藏行，避免遮挡 */
-            #sidebar.open .sidebar-controls { display: none; } 
+            /* ✅ Bug1 修复：不再隐藏侧边栏控制区 */
             
             .top-right-filters { top: 10px; right: 10px; }
             .filter-row img { width: 28px; height: 28px; }
@@ -247,7 +244,7 @@
 <body>
 
     <div class="global-toolbar">
-        <div class="toolbar-logo">CS2 多地图战术库</div>
+        <div class="toolbar-logo">CS2 道具备忘录</div>
         <div class="toolbar-search">
             <input type="text" id="global-search" placeholder="全局搜索 (ESC关闭)..." autocomplete="off">
             <div id="global-search-dropdown">
@@ -264,6 +261,7 @@
         </div>
     </div>
 
+    <!-- ✅ Bug2 修复：增加点击空白处关闭逻辑 -->
     <div class="mobile-search-overlay" id="mobile-search-overlay">
         <div class="mobile-search-header">
             <input type="text" id="mobile-search-input" placeholder="搜索道具名称或标签..." autocomplete="off">
@@ -289,7 +287,6 @@
     <div id="map-view">
         <aside id="sidebar">
             <div class="sidebar-header"><h2 id="map-title">地图标题</h2></div>
-            <!-- ✅ Bug4：重构侧边栏控制区 -->
             <div class="sidebar-controls">
                 <div class="search-fav-row">
                     <input type="text" id="local-search" placeholder="当前图内搜索..." autocomplete="off">
@@ -307,10 +304,9 @@
                 <div id="points-layer"></div>
             </div>
             
-            <!-- ✅ Bug2：折叠式筛选器 -->
             <div class="top-right-filters" id="top-filters">
                 <div class="filter-toggle-bar" onclick="document.getElementById('top-filters').classList.toggle('collapsed')">
-                    <span>🎯 筛选与显示</span>
+                    <span> 筛选与显示</span>
                     <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
                 </div>
                 <div class="filter-content">
@@ -336,7 +332,7 @@
                 <div id="crosshair"><div></div><div></div><div></div><div id="aim-radius-circle"></div></div>
                 <div class="aim-controls" id="aim-controls-standard">
                     <button id="aim-confirm" class="aim-btn">✓ 确认 (Enter)</button>
-                    <button id="aim-cancel" class="aim-btn"> 取消 (Esc)</button>
+                    <button id="aim-cancel" class="aim-btn">✕ 取消 (Esc)</button>
                 </div>
                 <div class="aim-controls" id="aim-controls-path" style="display:none;">
                     <button id="aim-path-add" class="aim-btn">+ 添加锚点</button>
@@ -378,7 +374,7 @@
                     <div class="bucket-section" data-bucket="lineup"><div class="bucket-title">📍 站位截图</div><div class="bucket-grid" id="grid-lineup"></div><div class="img-slot btn-add-img" onclick="document.getElementById('finput-lineup').click()" style="margin-top:12px;">+ 添加 / 拖入图片</div></div>
                     <div class="bucket-section" data-bucket="throw"><div class="bucket-title">🤚 出手截图</div><div class="bucket-grid" id="grid-throw"></div><div class="img-slot btn-add-img" onclick="document.getElementById('finput-throw').click()" style="margin-top:12px;">+ 添加 / 拖入图片</div></div>
                     <div class="bucket-section" data-bucket="effect"><div class="bucket-title">💥 效果截图</div><div class="bucket-grid" id="grid-effect"></div><div class="img-slot btn-add-img" onclick="document.getElementById('finput-effect').click()" style="margin-top:12px;">+ 添加 / 拖入图片</div></div>
-                    <div class="bucket-section" data-bucket="video"><div class="bucket-title"> 视频演示 (MP4)</div><input type="file" id="input-video" accept="video/mp4" style="font-size:13px; margin-bottom: 8px;"><div id="video-preview-status" style="font-size:13px; color:#aaa;"></div></div>
+                    <div class="bucket-section" data-bucket="video"><div class="bucket-title">📹 视频演示 (MP4)</div><input type="file" id="input-video" accept="video/mp4" style="font-size:13px; margin-bottom: 8px;"><div id="video-preview-status" style="font-size:13px; color:#aaa;"></div></div>
                 </form>
             </div>
             <div class="window-footer">
@@ -400,14 +396,14 @@
                     <div class="detail-actions-group">
                         <button class="btn-action-primary" id="btn-edit-current">⚙️ 编辑</button>
                         <button class="btn-action-fav" id="btn-detail-fav">☆ 收藏</button>
-                        <button class="btn-action-delete" id="btn-delete-current">🗑️ 删除</button>
+                        <button class="btn-action-delete" id="btn-delete-current">️ 删除</button>
                     </div>
                 </div>
                 <p id="detail-desc" style="color:#ccc; font-size:15px; line-height:1.6; margin-bottom:24px; white-space:pre-wrap; user-select:text;">暂无简介</p>
                 <div id="detail-video-container" style="display:none;"><div class="category-title">📹 视频演示</div><div class="video-container"><video id="detail-video" controls loop autoplay muted playsinline></video></div></div>
                 <div class="image-category" id="sec-detail-lineup"><div class="category-title">📍 站位视角</div><div class="detail-media-box" data-swipe="lineup"><button class="nav-btn nav-left" id="nav-l-lineup">‹</button><img id="main-detail-lineup" src=""><button class="nav-btn nav-right" id="nav-r-lineup">›</button></div><div class="thumb-nav" id="thumbs-detail-lineup"></div></div>
                 <div class="image-category" id="sec-detail-throw"><div class="category-title">🤚 出手瞬间</div><div class="detail-media-box" data-swipe="throw"><button class="nav-btn nav-left" id="nav-l-throw">‹</button><img id="main-detail-throw" src=""><button class="nav-btn nav-right" id="nav-r-throw">›</button></div><div class="thumb-nav" id="thumbs-detail-throw"></div></div>
-                <div class="image-category" id="sec-detail-effect"><div class="category-title">💥 最终效果</div><div class="detail-media-box" data-swipe="effect"><button class="nav-btn nav-left" id="nav-l-effect">‹</button><img id="main-detail-effect" src=""><button class="nav-btn nav-right" id="nav-r-effect">›</button></div><div class="thumb-nav" id="thumbs-detail-effect"></div></div>
+                <div class="image-category" id="sec-detail-effect"><div class="category-title"> 最终效果</div><div class="detail-media-box" data-swipe="effect"><button class="nav-btn nav-left" id="nav-l-effect">‹</button><img id="main-detail-effect" src=""><button class="nav-btn nav-right" id="nav-r-effect">›</button></div><div class="thumb-nav" id="thumbs-detail-effect"></div></div>
             </div>
         </div>
     </div>
@@ -418,7 +414,6 @@
 <script>
     const TYPE_ICONS = { smoke: 'icons/烟.webp', flash: 'icons/闪.webp', he: 'icons/雷.webp', molotov: 'icons/火.webp' };
     const DEFAULT_COLORS = { smoke: '#4D90FE', flash: '#B0BEC5', molotov: '#FF9800', he: '#E53935' };
-    // ✅ Bug3：默认半径配置 (如果manifest.json中没有则使用此值)
     const DEFAULT_RADIUS = { smoke: 0.045, he: 0.035, molotov: 0.04, flash: 0 };
     
     let maps = []; let currentMap = null; let allUtilities = {}; 
@@ -454,6 +449,14 @@
         document.querySelectorAll('.modal').forEach(modal => { modal.addEventListener('click', (e) => { if (e.target === modal) executeBackAction(); }); });
         document.getElementById('btn-toggle-sidebar').onclick = (e) => { e.stopPropagation(); document.getElementById('sidebar').classList.toggle('open'); };
         document.getElementById('map-container').addEventListener('click', () => { if(document.getElementById('sidebar').classList.contains('open')) document.getElementById('sidebar').classList.remove('open'); });
+        
+        // ✅ Bug2 修复：移动端搜索浮层点击空白处关闭
+        document.getElementById('mobile-search-overlay').addEventListener('click', (e) => {
+            // 如果点击的不是输入框，也不是搜索结果项，就关闭
+            if (e.target.tagName !== 'INPUT' && !e.target.closest('.global-search-item')) {
+                document.getElementById('mobile-search-overlay').classList.remove('active');
+            }
+        });
     }
 
     function setupImportExportEngine() {
@@ -466,6 +469,7 @@
         window.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; if (e.target.closest('.modal-window')) return; if (e.dataTransfer?.types.includes('Files')) document.getElementById('drop-overlay').style.display = 'flex'; });
         window.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; document.getElementById('drop-overlay').style.display = 'none'; } });
         window.addEventListener('drop', async (e) => { e.preventDefault(); dragCounter = 0; document.getElementById('drop-overlay').style.display = 'none'; if (e.target.closest('.modal-window')) return; if (e.dataTransfer.files.length > 0) await handleImportFile(e.dataTransfer.files[0]); });
+    document.getElementById('btn-close-export').onclick = executeBackAction;
     }
 
     async function runExport(isFolderMode) {
@@ -578,22 +582,24 @@
             const p=document.createElement('div'); p.className='point-wrapper t-pt'; p.dataset.id=item.id; p.style.left=item.x+'%'; p.style.top=item.y+'%';
             p.innerHTML=`<div class="map-point" style="border-color:${item.color||'#fff'}"><img class="point-icon" src="${TYPE_ICONS[item.type]}"></div>`;
             
-            const handlePointInteraction = (e) => {
-                if (isTouchDevice && singleTouchMoved) return;
-                e.stopPropagation();
-                if (isTouchDevice) {
-                    if (touchHoveredId === item.id) { showUtilityDetails(item); } 
-                    else { touchHoveredId = item.id; updateLayerVisibility(); }
-                } else {
-                    showUtilityDetails(item);
-                }
-            };
-            p.addEventListener('click', handlePointInteraction);
-            
-            // ✅ Bug1：PC端恢复鼠标悬浮模式
-            if (!isTouchDevice) {
+            // ✅ 修复：使用 CSS 媒体查询判断是否有鼠标悬停能力，解决带触摸屏电脑误判问题
+            if (window.matchMedia('(hover: hover)').matches) {
+                // 电脑端（有鼠标）：悬停预览，单击进详情
                 p.onmouseenter = () => { hoveredItemId = item.id; updateLayerVisibility(); };
                 p.onmouseleave = () => { hoveredItemId = null; updateLayerVisibility(); };
+                p.onclick = (e) => { e.stopPropagation(); showUtilityDetails(item); };
+            } else {
+                // 触屏端（无鼠标）：单击预览，双击进详情
+                p.addEventListener('click', (e) => {
+                    if (singleTouchMoved) return; // 拖拽地图后不触发
+                    e.stopPropagation();
+                    if (touchHoveredId === item.id) {
+                        showUtilityDetails(item); // 第二次点击进详情
+                    } else {
+                        touchHoveredId = item.id; // 第一次点击显示预览
+                        updateLayerVisibility();
+                    }
+                });
             }
             layer.appendChild(p);
 
@@ -602,10 +608,23 @@
                 const landEl=document.createElement('div'); landEl.className='land-wrapper l-pt'; landEl.dataset.id=item.id; landEl.style.left=lp.x+'%'; landEl.style.top=lp.y+'%'; 
                 landEl.innerHTML=`<div class="map-land" style="border-color:${item.color||'#fff'}; background:${item.color||'#fff'};"></div>`; 
                 
-                landEl.addEventListener('click', handlePointInteraction);
-                if (!isTouchDevice) {
+                if (window.matchMedia('(hover: hover)').matches) {
+                    // 电脑端落点：悬停预览，单击进详情
                     landEl.onmouseenter = () => { hoveredItemId = item.id; updateLayerVisibility(); };
                     landEl.onmouseleave = () => { hoveredItemId = null; updateLayerVisibility(); };
+                    landEl.onclick = (e) => { e.stopPropagation(); showUtilityDetails(item); };
+                } else {
+                    // 触屏端落点：单击预览，双击进详情
+                    landEl.addEventListener('click', (e) => {
+                        if (singleTouchMoved) return;
+                        e.stopPropagation();
+                        if (touchHoveredId === item.id) {
+                            showUtilityDetails(item);
+                        } else {
+                            touchHoveredId = item.id;
+                            updateLayerVisibility();
+                        }
+                    });
                 }
                 layer.appendChild(landEl); 
             }
@@ -672,6 +691,7 @@
 
     function setupMapEngine() {
         const mc=document.getElementById('map-container');
+        let lastTouchMidX = 0, lastTouchMidY = 0;
         mc.addEventListener('wheel', e => { e.preventDefault(); const r=mc.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top; const newScale=Math.min(Math.max(scale*(e.deltaY<0?1.15:0.85),0.15),10); const ratio=newScale/scale; tx=mx-(mx-tx)*ratio; ty=my-(my-ty)*ratio; scale=newScale; applyTransform(); }, {passive:false});
         
         mc.addEventListener('mousedown', e => { if(e.button===0){ dragStartX=e.clientX; dragStartY=e.clientY; isDragging=true; hasDragged=false; mc.classList.add('grabbing'); }});
@@ -692,6 +712,7 @@
                 const r = mc.getBoundingClientRect();
                 touchStartMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
                 touchStartMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+                lastTouchMidX = touchStartMidX; lastTouchMidY = touchStartMidY;
             } else if (e.touches.length === 1) {
                 singleTouchStartX = e.touches[0].clientX;
                 singleTouchStartY = e.touches[0].clientY;
@@ -705,14 +726,27 @@
         mc.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if (e.touches.length === 2) {
+                const r = mc.getBoundingClientRect();
+                const currentMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+                const currentMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+                
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const dist = Math.hypot(dx, dy);
                 const newScale = Math.min(Math.max(touchStartScale * (dist / touchStartDist), 0.15), 10);
-                const ratio = newScale / touchStartScale;
-                tx = touchStartMidX - (touchStartMidX - touchStartTx) * ratio;
-                ty = touchStartMidY - (touchStartMidY - touchStartTy) * ratio;
+                
+                // 计算上一帧中心点对应的地图坐标
+                const mapX = (lastTouchMidX - tx) / scale;
+                const mapY = (lastTouchMidY - ty) / scale;
+                
+                // 让该地图坐标对齐到当前中心点 (实现缩放+平移)
+                tx = currentMidX - mapX * newScale;
+                ty = currentMidY - mapY * newScale;
+                
                 scale = newScale;
+                
+                lastTouchMidX = currentMidX;
+                lastTouchMidY = currentMidY;
                 applyTransform();
             } else if (e.touches.length === 1 && isDragging) {
                 const dx = e.touches[0].clientX - singleTouchStartX;
