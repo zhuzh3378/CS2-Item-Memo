@@ -504,6 +504,7 @@
         let dragCounter = 0;
         window.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; if (e.target.closest('.modal-window')) return; if (e.dataTransfer?.types.includes('Files')) document.getElementById('drop-overlay').style.display = 'flex'; });
         window.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; document.getElementById('drop-overlay').style.display = 'none'; } });
+        window.addEventListener('dragover', (e) => { e.preventDefault(); });
         window.addEventListener('drop', async (e) => { e.preventDefault(); dragCounter = 0; document.getElementById('drop-overlay').style.display = 'none'; if (e.target.closest('.modal-window')) return; if (e.dataTransfer.files.length > 0) await handleImportFile(e.dataTransfer.files[0]); });
         document.getElementById('btn-close-export').onclick = executeBackAction;
     }
